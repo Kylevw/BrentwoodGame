@@ -16,6 +16,7 @@ import java.util.ArrayList;
 public interface ImageProviderIntf {
     
     public BufferedImage getImage(String name);
+    public BufferedImage getWallImage(String name, boolean[] connectData);
     public BufferedImage getTintedImage(BufferedImage image, Color tintColor);
     public BufferedImage getTintedImage(String imageName, Color tintColor);
     public ArrayList<String> getImageList(String listName);

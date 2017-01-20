@@ -8,6 +8,7 @@ package brentwoodgame.java.main;
 import java.util.ArrayList;
 import brentwoodgame.java.entities.Entity;
 import brentwoodgame.java.entities.Player;
+import brentwoodgame.java.entities.Student;
 
 /**
  *
@@ -18,12 +19,12 @@ public class EntityManager {
     public static ArrayList<Entity> entities = new ArrayList<>();
     
     public static Player player;
-//    public static ArrayList<Enemy> enemies = new ArrayList<>();
+    public static ArrayList<Student> students = new ArrayList<>();
     
-//    public static ArrayList<Enemy> getEnemies() {
-//        return enemies;
-//    }
-//    
+    public static ArrayList<Student> getStudents() {
+        return students;
+    }
+    
     
     public static ArrayList<Entity> getEntities() {
         if (player == null) entities.remove(player);

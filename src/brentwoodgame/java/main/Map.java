@@ -8,13 +8,10 @@ package brentwoodgame.java.main;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.image.BufferedImage;
 import static brentwoodgame.java.main.Environment.DEFAULT_WINDOW_HEIGHT;
 import static brentwoodgame.java.main.Environment.DEFAULT_WINDOW_WIDTH;
 import static brentwoodgame.java.main.Environment.DEFAULT_WINDOW_X;
 import static brentwoodgame.java.main.Environment.DEFAULT_WINDOW_Y;
-import brentwoodgame.java.resources.ImageProviderIntf;
-import brentwoodgame.java.resources.PImageManager;
 import grid.Grid;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -27,48 +24,22 @@ public class Map {
     
     private final Grid environmentGrid;
     
-    private TileID[][] mapData;
+    private final Tile[][] mapData;
     
-    private final ImageProviderIntf im;
-
-    public Map(TileID[][] mapData, Grid environmentGrid, ImageProviderIntf im) {
+    public Map(Tile[][] mapData, Grid environmentGrid) {
         this.environmentGrid = environmentGrid;
         this.mapData = mapData;
-        this.im = im;
     }
     
     public void drawMap(Graphics2D graphics, int xTranslation, int yTranslation) {
         for (int x = 0; x < environmentGrid.getColumns(); x++) {
             for (int y = 0; y < environmentGrid.getRows(); y++) {
                 Point point = environmentGrid.getCellSystemCoordinate(x, y);
-                if (point.x + environmentGrid.getCellWidth() >= -xTranslation &&
-                        point.y + environmentGrid.getCellHeight() >= -yTranslation &&
-                        point.x - DEFAULT_WINDOW_WIDTH <= -xTranslation &&
+                if (mapData[x][y] != null && point.x + environmentGrid.getCellWidth() >=
+                        -xTranslation && point.y + environmentGrid.getCellHeight() >=
+                        -yTranslation && point.x - DEFAULT_WINDOW_WIDTH <= -xTranslation &&
                         point.y - DEFAULT_WINDOW_HEIGHT <= -yTranslation)
-                    {
-                        BufferedImage image = null;
-                        
-                        if (mapData != null && mapData[x][y] != null) {
-                            switch (mapData[x][y]) {
-                                case AIR:
-                                    break;
-                                case WALL:
-                                    image = im.getImage(PImageManager.WALL_TILE);
-                                    break;
-                            }
-                        }
-                        
-                        if (image != null) graphics.drawImage(image,
-                        point.x, point.y,
-                        environmentGrid.getCellWidth(),
-                        environmentGrid.getCellHeight(), null);
-                        if (mapData != null && mapData[x][y] == TileID.WALL) {
-                            if (x <= 0 || mapData[x - 1][y] == TileID.WALL) graphics.drawImage(im.getImage(PImageManager.WALL_TILE_CONNECTOR_LEFT), point.x, point.y + 1, null);
-                            if (x >= environmentGrid.getColumns() || mapData[x + 1][y] == TileID.WALL) graphics.drawImage(im.getImage(PImageManager.WALL_TILE_CONNECTOR_RIGHT), point.x + environmentGrid.getCellWidth() - 2, point.y + 1, null);
-                            if (y <= 0 || mapData[x][y - 1] == TileID.WALL) graphics.drawImage(im.getImage(PImageManager.WALL_TILE_CONNECTOR_UP), point.x + 1, point.y, null);
-                            if (y >= environmentGrid.getRows() || mapData[x][y + 1] == TileID.WALL) graphics.drawImage(im.getImage(PImageManager.WALL_TILE_CONNECTOR_DOWN), point.x + 1, point.y  + environmentGrid.getCellHeight() - 2, null);
-                        }
-                    }
+                    mapData[x][y].draw(graphics);
             }
         }
     }
@@ -100,22 +71,59 @@ public class Map {
         return environmentGrid.getGridSize();
     }
     
-    private boolean hasCollision(TileID tileID) {
-        return (tileID == TileID.WALL);
-    }
-    
     public boolean collision(Rectangle objectBoundary) {
+        
+        if (objectBoundary.x < -(environmentGrid.getGridSize().width / 2) ||
+                objectBoundary.x + objectBoundary.width >= environmentGrid.getGridSize().width / 2 ||
+                objectBoundary.y < -(environmentGrid.getGridSize().height / 2) ||
+                objectBoundary.y + objectBoundary.height >= environmentGrid.getGridSize().height / 2)
+            return true;
+        
         if (mapData != null) {
         int x = (objectBoundary.x + (environmentGrid.getGridSize().width / 2)) / environmentGrid.getCellWidth();
         int y = (objectBoundary.y + (environmentGrid.getGridSize().height / 2)) / environmentGrid.getCellHeight();
         int x2 = (objectBoundary.x + objectBoundary.width - 1 + (environmentGrid.getGridSize().width / 2)) / environmentGrid.getCellWidth();
         int y2 = (objectBoundary.y + objectBoundary.height - 1 + (environmentGrid.getGridSize().height / 2)) / environmentGrid.getCellHeight();
         
-        if (objectBoundary.x < -(environmentGrid.getGridSize().width / 2) || x2 >= environmentGrid.getColumns() ||
-                objectBoundary.y < -(environmentGrid.getGridSize().height / 2) || y2 >= environmentGrid.getRows()) return true;
-        else return (hasCollision(mapData[x][y]) || hasCollision(mapData[x2][y]) ||
-                hasCollision(mapData[x][y2]) || hasCollision(mapData[x2][y2]));
+        return ((mapData[x][y].isBarrier() &&
+                mapData[x][y].getObjectBoundary().intersects(objectBoundary)) ||
+                (mapData[x2][y].isBarrier() &&
+                mapData[x2][y].getObjectBoundary().intersects(objectBoundary)) ||
+                (mapData[x][y2].isBarrier() &&
+                mapData[x][y2].getObjectBoundary().intersects(objectBoundary)) ||
+                (mapData[x2][y2].isBarrier() &&
+                mapData[x2][y2].getObjectBoundary().intersects(objectBoundary)));
         } else return false;
+    }
+    
+    
+    
+    public boolean checkInteractable(Point point) {
+        try {
+            return mapData[point.x][point.y].canInteract();
+        } catch (ArrayIndexOutOfBoundsException e) {
+            return false;
+        }
+    }
+    
+    public Point checkPointLocation(Point point) {
+        return environmentGrid.getCellLocationFromSystemCoordinate(point);
+    }
+
+    public String getTileScheme() {
+        return null;
+    }
+
+    boolean getTileBarrier(int x, int y) {
+        try {
+            return mapData[x][y].isBarrier();
+        } catch (ArrayIndexOutOfBoundsException e) {
+            return true;
+        }
+    }
+
+    void runTileEvent(Point point) {
+        mapData[point.x][point.y].interactEvent();
     }
     
 }

@@ -7,17 +7,16 @@ package brentwoodgame.java.entities;
 
 import environment.Actor;
 import environment.Velocity;
-import images.Animator;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
-import brentwoodgame.java.main.Map;
 import brentwoodgame.java.main.MapManager;
+import brentwoodgame.java.resources.Animator;
 import brentwoodgame.java.resources.AudioPlayerIntf;
 import brentwoodgame.java.resources.ImageProviderIntf;
-import brentwoodgame.java.resources.PImageManager;
+import brentwoodgame.java.resources.BrentwoodImageManager;
 
 /**
  *
@@ -48,8 +47,8 @@ public class Entity extends Actor{
         this.ap = ap;
         this.size = size;
         this.ip = ip;
-        PImageManager im = new PImageManager();
-        this.animator = new Animator(im, ip.getImageList(imageListName), animationSpeed);
+        BrentwoodImageManager im = new BrentwoodImageManager();
+        this.animator = new Animator(ip, ip.getImageList(null), animationSpeed);
         this.objectBoundaryFactor = objectBoundaryFactor;
     }
     
@@ -58,12 +57,12 @@ public class Entity extends Actor{
     }
     
     public void timerTaskHandler() {
-        updateImage();
+        move();
     }
     
     @Override
     public void draw(Graphics2D graphics) {
-        graphics.drawImage(ip.getImage(PImageManager.ENTITY_SHADOW), getObjectBoundary().x, getObjectBoundary().y + 1, getObjectBoundary().width, getObjectBoundary().height, null);
+        graphics.drawImage(ip.getImage(BrentwoodImageManager.ENTITY_SHADOW), getObjectBoundary().x, getObjectBoundary().y + 1, getObjectBoundary().width, getObjectBoundary().height, null);
         graphics.drawImage(animator.getCurrentImage(), getPosition().x - (size.width / 2), getPosition().y - size.height, size.width, size.height, null);
         if (drawBoundary) {
             graphics.setColor(Color.RED);
@@ -82,29 +81,41 @@ public class Entity extends Actor{
         this.drawBoundary = drawBoundary;
     }
     
+    public ImageProviderIntf getImageIntf() {
+        return ip;
+    }
+    
     @Override
     public void move() {
-        int xVelocity = getVelocity().x;
-        int yVelocity = getVelocity().y;
-        for (int x = xVelocity; Math.abs(x) > 0; x = (Math.abs(x) - 1) * x / Math.abs(x)) {
-            if (!MapManager.checkCollision(new Rectangle(getObjectBoundary().x + x,
+        
+        boolean collision = false;
+        
+        for (int x = getVelocity().x; Math.abs(x) > 0; x = (Math.abs(x) - 1) * x / Math.abs(x)) {
+            Rectangle xVelocityHitbox = new Rectangle(getObjectBoundary().x + x,
                 getObjectBoundary().y, getObjectBoundary().width,
-                getObjectBoundary().height))) {
-                xVelocity = x;
+                getObjectBoundary().height);
+            if (!MapManager.checkCollision(xVelocityHitbox)) {
+                setPosition(getPosition().x + x, getPosition().y);
                 break;
-            }
+            } else collision = true;
         }
         
-        for (int y = yVelocity; Math.abs(y) > 0; y = (Math.abs(y) - 1) * y / Math.abs(y)) {
-            if (!MapManager.checkCollision(new Rectangle(getObjectBoundary().x,
+        for (int y = getVelocity().y; Math.abs(y) > 0; y = (Math.abs(y) - 1) * y / Math.abs(y)) {
+            Rectangle yVelocityHitbox = new Rectangle(getObjectBoundary().x,
                 getObjectBoundary().y + y, getObjectBoundary().width,
-                getObjectBoundary().height))) {
-                yVelocity = y;
+                getObjectBoundary().height);
+            if (!MapManager.checkCollision(yVelocityHitbox)) {
+                setPosition(getPosition().x, getPosition().y + y);
                 break;
-            }
+            } else collision = true;
         }
         
-        setPosition(getPosition().x + xVelocity, getPosition().y + yVelocity);
+        if (collision) collisionAI();
+        
+    }
+    
+    public void collisionAI() {
+        
     }
     
     public boolean drawBoundary() {
@@ -116,16 +127,8 @@ public class Entity extends Actor{
         getObjectBoundary().intersects(entity.getObjectBoundary());
     }
     
-    public void setImage(String image) {
-        super.setImage(ip.getImage(image));
-    }
-    
     public Animator getAnimator() {
         return animator;
-    }
-    
-    public ImageProviderIntf getImageProvider() {
-        return ip;
     }
     
     public AudioPlayerIntf getAudioPlayer() {
@@ -148,13 +151,8 @@ public class Entity extends Actor{
         return despawn;
     }
     
-    private void updateImage() {
-        if (animator != null) setImage(animator.getCurrentImage());
-        if (tint != null) setImage(getImageProvider().getTintedImage(getImage(), tint));
-    }
-    
     public void setImageList(String listName) {
-        animator.setImageNames(getImageProvider().getImageList(listName));
+        animator.setImageNames(ip.getImageList(listName));
     }
     
 }

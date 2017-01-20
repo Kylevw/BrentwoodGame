@@ -7,8 +7,8 @@ package brentwoodgame.java.main;
 
 /**
  *
- * @author Kyle van Wiltenburg
+ * @author Kyle
  */
-public enum Direction {
-    UP, RIGHT, DOWN, LEFT
+public enum Time {
+    NIGHT, DAY, EVENING, MORNING;
 }

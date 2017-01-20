@@ -6,7 +6,7 @@
 package brentwoodgame.java.main;
 
 import brentwoodgame.java.resources.GameState;
-import brentwoodgame.java.resources.PImageManager;
+import brentwoodgame.java.resources.BrentwoodImageManager;
 import brentwoodgame.java.entities.Player;
 import java.awt.Color;
 import java.awt.Font;
@@ -16,16 +16,19 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
-import java.awt.geom.AffineTransform;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import brentwoodgame.java.entities.Entity;
+import brentwoodgame.java.entities.Gender;
+import brentwoodgame.java.entities.Student;
 import static brentwoodgame.java.main.EntityManager.entities;
 import static brentwoodgame.java.main.EntityManager.player;
+import static brentwoodgame.java.main.EntityManager.students;
 import brentwoodgame.java.resources.AudioManager;
+import timer.DurationTimer;
 
 /**
  *
@@ -33,47 +36,48 @@ import brentwoodgame.java.resources.AudioManager;
  */
 class Environment extends environment.Environment {
     
-    private boolean paused;
+    public boolean paused;
     
-    private boolean drawBoundary;
+    public boolean drawBoundary;
     
     public GameState gameState;
+    
+    public Color backgroundColor;
     
     public static final int DEFAULT_WINDOW_WIDTH = 288;
     public static final int DEFAULT_WINDOW_HEIGHT = 160;
     public static final int DEFAULT_WINDOW_X = DEFAULT_WINDOW_WIDTH / 2;
     public static final int DEFAULT_WINDOW_Y = DEFAULT_WINDOW_HEIGHT / 2;
     
+    public static final String ARTS_MAP = "arts";
+    
     public static final int GRID_CELL_SIZE = 16;
     
-    private int xTranslation;
-    private int yTranslation;
+    public BrentwoodImageManager im;
+    public AudioManager am;
     
-    PImageManager im;
-    AudioManager am;
-
     public Environment() {
         
         gameState = GameState.ENVIRONMENT;
-        im = new PImageManager();
+        im = new BrentwoodImageManager();
         am = new AudioManager();
         
-        setMap();
+        backgroundColor = Color.WHITE;
         
+        MapManager.setMap(MapManager.ARTS_MAP, im);
         
-        player = new Player(new Point(0, 0), new PlayerScreenLimitProvider(
+        player = new Player(new Point(0, 0), Gender.BOY, new PlayerScreenLimitProvider(
                 MapManager.getMapSize().width - DEFAULT_WINDOW_WIDTH,
                 MapManager.getMapSize().height - DEFAULT_WINDOW_HEIGHT), im, am);
         
+        students.add(new Student(new Point(0, 20), im, am, Gender.BOY));
+        students.add(new Student(new Point(0, 33), im, am, Gender.GIRL));
+        
+//        PaintEnvironment.setEnvironmentTint(new Color(255, 255, 0, 100));
+        
     }
-    
-    private void setMap() {
-        MapManager.setMap("test", im);
-    }
-    
-    
-
-    Font gamefont, gamefont_7, gamefont_14, hitfont, hitfont_5;
+        
+    public Font gamefont, gamefont_7, gamefont_14, hitfont, hitfont_5;
 
     @Override
     public void initializeEnvironment() {
@@ -98,17 +102,18 @@ class Environment extends environment.Environment {
     @Override
     public void timerTaskHandler() {
         
+        MapManager.timerTaskHandler();
         if (player != null && player.despawn()) player = null;
         
-//        ArrayList<Enemy> removeEnemies = new ArrayList<>();
-//        EntityManager.getEnemies().stream().forEach((enemy) -> {
-//            if (enemy.despawn()) removeEnemies.add(enemy);
-//        });
-//        enemies.removeAll(removeEnemies);
+        ArrayList<Student> removeStudents = new ArrayList<>();
+        EntityManager.getStudents().stream().forEach((student) -> {
+            if (student.despawn()) removeStudents.add(student);
+        });
+        students.removeAll(removeStudents);
         
         entities = new ArrayList<>();
         if (player != null) entities.add(player);
-//        if (enemies != null) entities.addAll(EntityManager.getEnemies());
+        if (students != null) entities.addAll(EntityManager.getStudents());
         
         entities.sort((Entity e1, Entity e2) -> {
             final int y1 = e1.getPosition().y;
@@ -137,11 +142,7 @@ class Environment extends environment.Environment {
             else if (e.getKeyCode() == KeyEvent.VK_DOWN && !player.getDirections().contains(Direction.DOWN)) player.addDirection(Direction.DOWN);
             else if (e.getKeyCode() == KeyEvent.VK_LEFT && !player.getDirections().contains(Direction.LEFT)) player.addDirection(Direction.LEFT);
             else if (e.getKeyCode() == KeyEvent.VK_RIGHT && !player.getDirections().contains(Direction.RIGHT)) player.addDirection(Direction.RIGHT);
-                        
-//            else if (e.getKeyCode() == KeyEvent.VK_1) MapManager.updateGrid(1, 1);
-//            else if (e.getKeyCode() == KeyEvent.VK_2) MapManager.updateGrid(2, 2);
-//            else if (e.getKeyCode() == KeyEvent.VK_3) MapManager.updateGrid(1, 2);
-//            else if (e.getKeyCode() == KeyEvent.VK_3) MapManager.updateGrid(2, 1);
+            else if (e.getKeyCode() == KeyEvent.VK_Z) player.runInteraction();
             
             else if (e.getKeyCode() == KeyEvent.VK_P && player != null) {
                 System.out.println(player.getPosition());
@@ -175,99 +176,11 @@ class Environment extends environment.Environment {
     @Override
     public void paintEnvironment(Graphics g) {
         
-        // Resizes the default window size to the current size of the JFrame
-        AffineTransform atWindow;
-        Graphics2D graphics = (Graphics2D) g;
-        atWindow = AffineTransform.getScaleInstance((double) BrentwoodGame.getWindowSize().width / DEFAULT_WINDOW_WIDTH, (double) BrentwoodGame.getWindowSize().height / DEFAULT_WINDOW_HEIGHT);
-        if (atWindow != null) graphics.setTransform(atWindow);
-        
-        if (player != null) {
-            xTranslation = player.getPosition().x;
-            yTranslation = player.getPosition().y;
-            if (xTranslation < player.getScreenMinX()) xTranslation = player.getScreenMinX();
-            else if (xTranslation > player.getScreenMaxX()) xTranslation = player.getScreenMaxX();
-            if (yTranslation < player.getScreenMinY()) yTranslation = player.getScreenMinY();
-            else if (yTranslation > player.getScreenMaxY() + 8) yTranslation = player.getScreenMaxY() + 8;
-            xTranslation = DEFAULT_WINDOW_X - xTranslation;
-            yTranslation = DEFAULT_WINDOW_Y - yTranslation;
-            if ((MapManager.getMapSize().width / GRID_CELL_SIZE) <= DEFAULT_WINDOW_WIDTH / GRID_CELL_SIZE) xTranslation = DEFAULT_WINDOW_WIDTH / 2;
-            if ((MapManager.getMapSize().height / GRID_CELL_SIZE) <= DEFAULT_WINDOW_HEIGHT / GRID_CELL_SIZE) yTranslation = DEFAULT_WINDOW_HEIGHT / 2;
+        if (backgroundColor != MapManager.getBackgroundColor()) {
+            backgroundColor = MapManager.getBackgroundColor();
+            setBackground(backgroundColor);
         }
         
-        // Translates all background images in reference to the player's current position
-        graphics.translate(xTranslation, yTranslation);
-        
-        // Draws rectangles for debugging
-//            drawGridBase(graphics);
-            
-//            buildWall(graphics, im.getImage(PImageManager.BRICK_TILE), -4, -2, 4, 2);
-            
-            MapManager.drawMap(graphics, xTranslation, yTranslation);
-//            environmentGrid.paintComponent(graphics);
-            
-        EntityManager.getEntities().stream().forEach((entity) -> {
-            entity.draw(graphics);
-        });
-        
-        graphics.translate(-xTranslation, -yTranslation);
-        
-        graphics.setFont(gamefont_7);
-        
-        if (!paused) {
-            graphics.setColor(new Color(0, 0, 0, 80));
-            graphics.drawString("Press ESCAPE for control menu", 3, 191);
-            graphics.setColor(Color.WHITE);
-            graphics.drawString("Press ESCAPE for control menu", 2, 190);
-        }
-            
-        for (int i = 0; i < 7; i++) {
-            graphics.drawImage(im.getImage(PImageManager.INVENTORY_SLOT), 222 + (i * 16), 2, 16, 16, null);
-        }
-        graphics.drawImage(im.getImage(PImageManager.ITEM_SWORD), 225, 5, 10, 10, null);
-        graphics.drawImage(im.getImage(PImageManager.ITEM_BOW), 241, 5, 10, 10, null);
-        
-        if (paused) {
-            graphics.setColor(new Color(0, 0, 0, 100));
-            graphics.fillRect(0, 0, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT);
-            
-            graphics.setColor(new Color(0, 0, 0, 80));
-            graphics.drawString("Press Q to show hitboxes", 3, 13);
-            
-            graphics.drawString("Use WASD to move", 3, 37);
-            graphics.drawString("Press SPACE to jump", 3, 49);
-            graphics.drawString("Use the ARROW KEYS to draw bow", 3, 61);
-            graphics.drawString("Release the ARROW KEYS to fire bow", 3, 73);
-            graphics.drawString("Press PERIOD to swing sword", 3, 85);
-            graphics.drawString("Press SLASH to throw bomb", 3, 97);
-            
-            graphics.drawString("Press F to spawn heart pickup", 3, 121);
-            graphics.drawString("Press G to spawn bomb pickup", 3, 133);
-            graphics.drawString("Press H to spawn arrow pickup", 3, 145);
-            graphics.drawString("Press Z to spawn Bat", 3, 157);
-            graphics.drawString("Press X to spawn Samsara Eye", 3, 169);
-            
-            graphics.drawString("Press ESCAPE to close menu", 3, 191);
-            
-            
-            graphics.setColor(Color.WHITE);
-            graphics.drawString("Press Q to show hitboxes", 2, 12);
-            
-            graphics.drawString("Use WASD to move", 2, 36);
-            graphics.drawString("Press SPACE to jump", 2, 48);
-            graphics.drawString("Use the ARROW KEYS to draw bow", 2, 60);
-            graphics.drawString("Release the ARROW KEYS to fire bow", 2, 72);
-            graphics.drawString("Press PERIOD to swing sword", 2, 84);
-            graphics.drawString("Press SLASH to throw bomb", 2, 96);
-            
-            graphics.drawString("Press F to spawn heart pickup", 2, 120);
-            graphics.drawString("Press G to spawn bomb pickup", 2, 132);
-            graphics.drawString("Press H to spawn arrow pickup", 2, 144);
-            graphics.drawString("Press Z to spawn Bat", 2, 156);
-            graphics.drawString("Press X to spawn Samsara Eye", 2, 168);
-            
-            graphics.drawString("Press ESCAPE to close menu", 2, 190);
-        }
-        
+        PaintEnvironment.drawEnvironment((Graphics2D) g);
     }
-    
 }

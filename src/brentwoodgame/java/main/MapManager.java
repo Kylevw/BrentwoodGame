@@ -27,32 +27,92 @@ import java.io.IOException;
  */
 public class MapManager {
     
-    public static final String TEST_MAP = "TEST_MAP";
+    public static final String ARTS_MAP = "arts";
     
     private static Map map;
     
-    public static void setMap(String map, ImageProviderIntf im) {
-        File mapFile = new File(map + ".map");
-        String tileScheme;
-        String mapSize;
-        String tileData;
+    private static final String MAP_FILE_LOCATION = "src/brentwoodgame/resources/maps/";
+    private static final String MAP_FILE_TYPE = ".map";
+    
+    private static boolean drawGrid = false;
+    private static Color backgroundColor;
+    
+    private static String promptedMap;
+    private static ImageProviderIntf promptedip;
+    private static Point promptedPlayerPosition;
+    private static Direction promptedPlayerDirection;
+    
+    private static boolean updateMap = false;
+    
+    public static void promptNewMap(String map, ImageProviderIntf ip, Point playerPosition, Direction playerDirection) {
+        promptedMap = map;
+        promptedip = ip;
+        promptedPlayerPosition = playerPosition;
+        promptedPlayerDirection = playerDirection;
+        updateMap = true;
+        PaintEnvironment.loadingNewMap = true;
+    }
+    
+    public static void setMap(String map, ImageProviderIntf ip, Point playerPosition, Direction playerDirection) {
+        if (player != null) {
+            player.setPosition(playerPosition);
+            player.setDirection(playerDirection);
+        }
+        setMap(map, ip);
+    }
+    
+    public static void setMap(String map, ImageProviderIntf ip) {
+        MapManager.map = null;
+        EntityManager.students.clear();
+        File mapFile = new File(MAP_FILE_LOCATION + map + MAP_FILE_TYPE);
+        String tileScheme = null;
+        String[] mapSize;
+        String tileData = null;
         double xScreens = 1;
         double yScreens = 1;
         try {
             FileReader mapReader = new FileReader(mapFile);
             BufferedReader mapInput = new BufferedReader(mapReader);
-            tileScheme = mapInput.readLine();
-            mapSize = mapInput.readLine();
-            tileData = mapInput.readLine();
-            System.out.println(tileScheme);
-            System.out.println(mapSize);
-            System.out.println(tileData);
-            xScreens = 1;
-            yScreens = 2;
+            
+            String inputData = "";
+            String line;
+            while ((line = mapInput.readLine()) != null) {
+                inputData = inputData + line;
+            }
+            
+            String[] dataFragments = inputData.split(";");
+            
+            tileScheme = dataFragments[0];
+            drawGrid = tileScheme.equals(TileLibrary.DEBUG);
+            backgroundColor = Color.WHITE;
+            switch (tileScheme) {
+                case TileLibrary.ARTS:
+                    backgroundColor = Color.BLACK;
+                    break;
+                case TileLibrary.CAMPUS:
+                    backgroundColor = Color.BLUE;
+                    break;
+            }
+            
+            
+            mapSize = dataFragments[1].split(",");
+            
+            tileData = dataFragments[2];
+            
+//            System.out.println(tileScheme);
+//            System.out.println(mapSize);
+//            System.out.println(tileData);
+            
+            xScreens = Double.valueOf(mapSize[0]);
+            xScreens = xScreens < 1 ? 1 : xScreens;
+            yScreens = Double.valueOf(mapSize[1]);
+            yScreens = yScreens < 1 ? 1 : yScreens;
+            
         } catch (IOException ex) {
             System.out.printf("Error: %s\n", ex);
-            
         }
+        
+        
         
         int x = (int) (xScreens * DEFAULT_WINDOW_WIDTH);
         int y = (int) (yScreens * DEFAULT_WINDOW_HEIGHT);
@@ -64,19 +124,47 @@ public class MapManager {
                 environmentGrid.getGridSize().width - DEFAULT_WINDOW_WIDTH,
                 environmentGrid.getGridSize().height - DEFAULT_WINDOW_HEIGHT);
         
-        TileID[][] mapData = new TileID[environmentGrid.getColumns()][environmentGrid.getRows()];
+        Tile[][] mapData;
+        if (tileData != null) mapData = getTileMap(tileData, tileScheme, environmentGrid.getColumns(), environmentGrid.getRows(), ip);
+        else mapData = new Tile[environmentGrid.getColumns()][environmentGrid.getRows()];
         
-        mapData[1][1] = TileID.WALL;
+        MapManager.map = new Map(mapData, environmentGrid);
         
-        MapManager.map = new Map(mapData, environmentGrid, im);
+        updateMap = false;
+        PaintEnvironment.loadingNewMap = false;
     }
     
-    public void timerTaskHandler() {
-        
+    private static Tile[][] getTileMap(String tileData, String tileScheme, int columns, int rows, ImageProviderIntf ip) {
+        String[] tileIDs = tileData.split(",");
+        Tile[][] mapData = new Tile[columns][rows];
+        for (int tile = 0; tile < columns * rows; tile++) {
+            int x = tile % columns;
+            int y = tile / columns;
+            if (tile >= tileIDs.length) {
+                for (int tileFill = tile; tileFill < columns * rows; tileFill++) {
+                    mapData[x][y] = TileLibrary.getTile(TileLibrary.AIR, null, null, ip);
+                }
+                break;
+            }
+            if (tileIDs[tile].contains(":")) {
+                String[] tileInfo = tileIDs[tile].split(":");
+                int id = Integer.valueOf(tileInfo[0]);
+                mapData[x][y] = TileLibrary.getTile(id, tileScheme, new Point(x, y), ip, tileInfo[1], new Point(Integer.valueOf(tileInfo[2]), Integer.valueOf(tileInfo[3])), Integer.valueOf(tileInfo[4]));
+            }
+            else {
+                int id = Integer.valueOf(tileIDs[tile]);
+                mapData[x][y] = TileLibrary.getTile(id, tileScheme, new Point(x, y), ip);
+            }
+        }
+        return mapData;
+    }
+    
+    public static void timerTaskHandler() {
+        if (updateMap && !PaintEnvironment.isMapVisible()) setMap(promptedMap, promptedip, promptedPlayerPosition, promptedPlayerDirection);
     }
     
     public static void drawMap(Graphics2D graphics, int xTranslation, int yTranslation) {
-        map.drawGridBase(graphics);
+        if (drawGrid) map.drawGridBase(graphics);
         map.drawMap(graphics, xTranslation, yTranslation);
     }
     
@@ -86,6 +174,30 @@ public class MapManager {
     
     public static boolean checkCollision(Rectangle objectBoundary) {
         return map.collision(objectBoundary);
+    }
+    
+    public static Point gridCellLocation(Point gridPoint) {
+        return map.checkPointLocation(gridPoint);
+    }
+    
+    public static String getTileScheme() {
+        return map.getTileScheme();
+    }
+    
+    public static boolean checkIsBarrier(int x, int y) {
+        return map.getTileBarrier(x, y);
+    }
+    
+    public static Color getBackgroundColor() {
+        return backgroundColor;
+    }
+
+    public static boolean interactableTile(Point point) {
+        return map.checkInteractable(point);
+    }
+
+    public static void runTileEvent(Point point) {
+        map.runTileEvent(point);
     }
     
 }

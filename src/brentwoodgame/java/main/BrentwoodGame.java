@@ -32,7 +32,7 @@ public class BrentwoodGame {
         GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
         int width = gd.getDisplayMode().getWidth();
         int height = gd.getDisplayMode().getHeight();
-        frame = ApplicationStarter.run("Plunder", new Dimension(width, height), new Environment(), ResourceTools.loadImageFromResource("brentwoodgame/resources/images/entity/icon.png"));
+        frame = ApplicationStarter.run("BrentwoodGame", new Dimension(width, height), new Environment(), ResourceTools.loadImageFromResource("brentwoodgame/resources/images/entity/icon.png"));
     }
     
     public static Dimension getWindowSize() {

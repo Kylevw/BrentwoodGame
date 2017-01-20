@@ -3,12 +3,12 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package brentwoodgame.java.main;
+package brentwoodgame.java.entities;
 
 /**
  *
- * @author Kyle van Wiltenburg
+ * @author Kyle
  */
-public enum Direction {
-    UP, RIGHT, DOWN, LEFT
+public enum Gender {
+    BOY, GIRL
 }
